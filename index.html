@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Intent Infra — From Intent to Production-Ready Cloud Architecture</title>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-primary: #09090b;
+    --bg-secondary: #0f0f13;
+    --bg-card: #13131a;
+    --bg-card-hover: #1a1a24;
+    --border: #1e1e2e;
+    --border-accent: #2a2a3e;
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --accent: #22d3ee;
+    --accent-dim: rgba(34, 211, 238, 0.12);
+    --accent-glow: rgba(34, 211, 238, 0.25);
+    --green: #34d399;
+    --green-dim: rgba(52, 211, 153, 0.12);
+    --amber: #fbbf24;
+    --amber-dim: rgba(251, 191, 36, 0.12);
+    --purple: #a78bfa;
+    --purple-dim: rgba(167, 139, 250, 0.12);
+    --red: #f87171;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── Grid background ── */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Glow orbs ── */
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-orb-1 {
+    width: 600px; height: 600px;
+    background: rgba(34, 211, 238, 0.06);
+    top: -200px; left: -100px;
+  }
+  .glow-orb-2 {
+    width: 500px; height: 500px;
+    background: rgba(167, 139, 250, 0.05);
+    top: 300px; right: -150px;
+  }
+  .glow-orb-3 {
+    width: 400px; height: 400px;
+    background: rgba(52, 211, 153, 0.04);
+    bottom: -100px; left: 30%;
+  }
+
+  /* ── Layout ── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Nav ── */
+  nav {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(9, 9, 11, 0.85);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+  }
+  nav .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--bg-primary);
+    font-weight: 800;
+  }
+  .nav-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 100px 0 80px;
+    text-align: center;
+    position: relative;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    padding: 6px 16px;
+    border-radius: 30px;
+    margin-bottom: 32px;
+    animation: fadeInUp 0.8s ease both;
+  }
+  .hero-badge .dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  h1 {
+    font-size: clamp(2.8rem, 6vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+    animation: fadeInUp 0.8s ease 0.1s both;
+  }
+  h1 .gradient-text {
+    background: linear-gradient(135deg, var(--accent), var(--purple), var(--green));
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 6s ease infinite;
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .hero-sub {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 48px;
+    font-weight: 300;
+    line-height: 1.7;
+    animation: fadeInUp 0.8s ease 0.2s both;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Waitlist form ── */
+  .waitlist-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 480px;
+    margin: 0 auto;
+    animation: fadeInUp 0.8s ease 0.3s both;
+  }
+  .waitlist-form .form-row {
+    display: flex;
+    gap: 10px;
+  }
+  .waitlist-form input, .waitlist-form textarea {
+    flex: 1;
+    padding: 14px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-accent);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .waitlist-form textarea {
+    resize: vertical;
+    min-height: 52px;
+    max-height: 120px;
+  }
+  .waitlist-form input::placeholder, .waitlist-form textarea::placeholder { color: var(--text-muted); }
+  .waitlist-form input:focus, .waitlist-form textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  .waitlist-form button {
+    padding: 14px 28px;
+    background: linear-gradient(135deg, var(--accent), #06b6d4);
+    border: none;
+    border-radius: 12px;
+    color: var(--bg-primary);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.2s, box-shadow 0.3s;
+  }
+  .waitlist-form button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+  .waitlist-form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .form-error {
+    color: var(--red);
+    font-size: 0.82rem;
+    font-family: 'JetBrains Mono', monospace;
+    display: none;
+  }
+  .waitlist-note {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    animation: fadeInUp 0.8s ease 0.4s both;
+  }
+
+  /* ── Success state ── */
+  .waitlist-success {
+    display: none;
+    text-align: center;
+    animation: fadeInUp 0.5s ease both;
+  }
+  .waitlist-success .check-icon {
+    width: 56px; height: 56px;
+    background: var(--green-dim);
+    border: 2px solid var(--green);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+  .waitlist-success h3 {
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+    color: var(--green);
+  }
+  .waitlist-success p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+  }
+
+  /* ── Terminal demo ── */
+  .terminal {
+    max-width: 720px;
+    margin: 72px auto 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    animation: fadeInUp 0.8s ease 0.5s both;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(15,15,19,0.6);
+  }
+  .terminal-dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+  }
+  .terminal-dot:nth-child(1) { background: #f87171; }
+  .terminal-dot:nth-child(2) { background: #fbbf24; }
+  .terminal-dot:nth-child(3) { background: #34d399; }
+  .terminal-title {
+    flex: 1;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-right: 40px;
+  }
+  .terminal-body {
+    padding: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    min-height: 220px;
+  }
+  .t-prompt { color: var(--accent); }
+  .t-comment { color: var(--text-muted); }
+  .t-string { color: var(--green); }
+  .t-key { color: var(--purple); }
+  .t-output { color: var(--text-secondary); }
+  .t-arrow { color: var(--amber); }
+  .t-line {
+    opacity: 0;
+    animation: terminalLine 0.4s ease forwards;
+  }
+  .t-line:nth-child(1) { animation-delay: 0.8s; }
+  .t-line:nth-child(2) { animation-delay: 1.4s; }
+  .t-line:nth-child(3) { animation-delay: 2.0s; }
+  .t-line:nth-child(4) { animation-delay: 2.6s; }
+  .t-line:nth-child(5) { animation-delay: 3.2s; }
+  .t-line:nth-child(6) { animation-delay: 3.8s; }
+  .t-line:nth-child(7) { animation-delay: 4.4s; }
+  .t-line:nth-child(8) { animation-delay: 5.0s; }
+  .t-line:nth-child(9) { animation-delay: 5.5s; }
+
+  @keyframes terminalLine {
+    from { opacity: 0; transform: translateX(-5px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── Pipeline section ── */
+  .pipeline {
+    padding: 100px 0 80px;
+  }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-desc {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    max-width: 560px;
+    margin-bottom: 56px;
+    font-weight: 300;
+  }
+
+  .pipeline-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    position: relative;
+  }
+  .pipeline-step {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 32px 24px;
+    position: relative;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .pipeline-step:first-child { border-radius: 16px 0 0 16px; }
+  .pipeline-step:last-child { border-radius: 0 16px 16px 0; }
+  .pipeline-step:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-accent);
+  }
+  .step-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-number::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-accent);
+  }
+  .step-icon {
+    font-size: 1.6rem;
+    margin-bottom: 14px;
+  }
+  .step-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+  .step-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .step-arrow {
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-size: 1.1rem;
+    z-index: 2;
+    opacity: 0.6;
+  }
+
+  /* ── Features ── */
+  .features {
+    padding: 40px 0 100px;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .feature-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .feature-card:hover::before { opacity: 1; }
+  .feature-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-accent);
+    transform: translateY(-2px);
+  }
+  .feature-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 18px;
+  }
+  .fi-cyan { background: var(--accent-dim); }
+  .fi-green { background: var(--green-dim); }
+  .fi-amber { background: var(--amber-dim); }
+  .fi-purple { background: var(--purple-dim); }
+  .feature-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+  .feature-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+  .feature-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-top: 14px;
+  }
+  .ft-cyan { color: var(--accent); background: var(--accent-dim); }
+  .ft-green { color: var(--green); background: var(--green-dim); }
+  .ft-amber { color: var(--amber); background: var(--amber-dim); }
+  .ft-purple { color: var(--purple); background: var(--purple-dim); }
+
+  /* ── Not section ── */
+  .not-section {
+    padding: 60px 0 100px;
+  }
+  .not-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 800px;
+  }
+  .not-card {
+    padding: 24px 28px;
+    border-radius: 14px;
+    border: 1px solid;
+  }
+  .not-card.is-not {
+    background: rgba(248, 113, 113, 0.04);
+    border-color: rgba(248, 113, 113, 0.15);
+  }
+  .not-card.is-yes {
+    background: rgba(52, 211, 153, 0.04);
+    border-color: rgba(52, 211, 153, 0.15);
+  }
+  .not-card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .is-not .not-card-label { color: var(--red); }
+  .is-yes .not-card-label { color: var(--green); }
+  .not-card li {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    padding-left: 20px;
+    position: relative;
+    list-style: none;
+  }
+  .not-card li::before {
+    position: absolute;
+    left: 0;
+    font-size: 0.85rem;
+  }
+  .is-not li::before { content: '✕'; color: var(--red); }
+  .is-yes li::before { content: '✓'; color: var(--green); }
+
+  /* ── CTA ── */
+  .cta {
+    padding: 80px 0 120px;
+    text-align: center;
+  }
+  .cta-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 64px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--purple), transparent);
+  }
+  .cta-box h2 {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .cta-box p {
+    color: var(--text-secondary);
+    margin-bottom: 36px;
+    font-size: 1.05rem;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    text-align: center;
+  }
+  footer p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .pipeline-steps { grid-template-columns: repeat(2, 1fr); }
+    .pipeline-step:first-child { border-radius: 16px 0 0 0; }
+    .pipeline-step:nth-child(2) { border-radius: 0 16px 0 0; }
+    .pipeline-step:nth-child(3) { border-radius: 0 0 0 16px; }
+    .pipeline-step:last-child { border-radius: 0 0 16px 0; }
+    .step-arrow { display: none; }
+    .features-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .hero { padding: 64px 0 48px; }
+    .pipeline-steps { grid-template-columns: 1fr; }
+    .pipeline-step,
+    .pipeline-step:first-child,
+    .pipeline-step:last-child,
+    .pipeline-step:nth-child(2),
+    .pipeline-step:nth-child(3) { border-radius: 14px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .not-grid { grid-template-columns: 1fr; }
+    .waitlist-form button { width: 100%; }
+    .waitlist-form .form-row { flex-direction: column; }
+    .cta-box { padding: 40px 24px; }
+    .terminal-body { padding: 16px; font-size: 0.72rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <a href="#" class="logo">
+      <div class="logo-icon">CI</div>
+      Cloud Intent Infra
+    </a>
+    <span class="nav-tag">Early Access</span>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+  <div class="container">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Building in public — Waitlist open
+    </div>
+    <h1>From intent to<br><span class="gradient-text">production-ready<br>cloud architecture</span></h1>
+    <p class="hero-sub">
+      Describe what your app needs in plain language. Get a production-grade, cost-optimized cloud architecture designed and deployed automatically — in seconds, not days.
+    </p>
+
+    <div id="waitlist-form-container">
+      <form class="waitlist-form" id="waitlistForm">
+        <div class="form-row">
+          <input type="email" placeholder="you@company.com" required id="emailInput">
+          <button type="submit">Join Waitlist</button>
+        </div>
+        <textarea placeholder="What would you use this for? (optional)" id="messageInput" rows="1"></textarea>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAACfoj-zPeotsx3Om" data-theme="dark" data-size="flexible"></div>
+        <div class="form-error" id="formError"></div>
+      </form>
+      <p class="waitlist-note">No spam. We'll only notify you when it's ready.</p>
+    </div>
+
+    <div class="waitlist-success" id="waitlistSuccess">
+      <div class="check-icon">✓</div>
+      <h3>You're on the list</h3>
+      <p>We'll reach out when early access opens. Stay tuned.</p>
+    </div>
+
+    <!-- Terminal -->
+    <div class="terminal">
+      <div class="terminal-header">
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-title">cloud-intent — demo</span>
+      </div>
+      <div class="terminal-body">
+        <div class="t-line"><span class="t-prompt">$</span> <span class="t-comment"># describe your app, we do the rest</span></div>
+        <div class="t-line"><span class="t-prompt">$</span> cloud-intent deploy \</div>
+        <div class="t-line">&nbsp;&nbsp;<span class="t-string">"SaaS multi-tenant, API + PostgreSQL, HA on AWS"</span></div>
+        <div class="t-line"><br></div>
+        <div class="t-line"><span class="t-arrow">→</span> <span class="t-output">Interpreting intent...</span> <span class="t-key">workload:web</span> <span class="t-key">ha:multi-az</span> <span class="t-key">db:postgres</span></div>
+        <div class="t-line"><span class="t-arrow">→</span> <span class="t-output">Designing architecture...</span> <span class="t-string">VPC + ALB + ECS Fargate + RDS Multi-AZ</span></div>
+        <div class="t-line"><span class="t-arrow">→</span> <span class="t-output">Optimizing cost...</span> <span class="t-string">~$287/mo</span> <span class="t-comment">(vs $520 naive config)</span></div>
+        <div class="t-line"><span class="t-arrow">→</span> <span class="t-output">Deploying to AWS...</span> <span class="t-string" style="color:var(--green)">████████████████████ 100%</span></div>
+        <div class="t-line"><br><span class="t-arrow">✓</span> <span style="color:var(--green)">Live at</span> <span style="color:var(--accent)">app.yourdomain.com</span> <span class="t-comment">· IaC saved to ./infra/</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pipeline -->
+<section class="pipeline">
+  <div class="container">
+    <p class="section-label">How it works</p>
+    <h2 class="section-title">Three layers of translation</h2>
+    <p class="section-desc">Cloud Intent Infra is a semantic abstraction layer over cloud infrastructure. Not a chatbot — a translation engine.</p>
+
+    <div class="pipeline-steps">
+      <div class="pipeline-step">
+        <div class="step-number">01</div>
+        <div class="step-icon">💬</div>
+        <div class="step-title">Intent → Requirements</div>
+        <div class="step-desc">Natural language in, technical specs out. Workload type, availability, security, scale — all inferred.</div>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-number">02</div>
+        <div class="step-icon">🏗️</div>
+        <div class="step-title">Requirements → Architecture</div>
+        <div class="step-desc">VPC segmentation, subnets, compute, DB config, IAM, networking — designed as a coherent system.</div>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-number">03</div>
+        <div class="step-icon">💰</div>
+        <div class="step-title">Sizing & Cost Optimization</div>
+        <div class="step-desc">Right-sized from day one. Estimated cost with cheaper alternatives surfaced automatically.</div>
+        <span class="step-arrow">→</span>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-number">04</div>
+        <div class="step-icon">🚀</div>
+        <div class="step-title">Architecture → Live</div>
+        <div class="step-desc">Auto-deploys your infra to your cloud account. Full IaC (Terraform) exported too — you own everything.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="container">
+    <p class="section-label">Why it matters</p>
+    <h2 class="section-title">Not another Terraform wrapper</h2>
+    <p class="section-desc">Built for real production workloads, not hello-world demos.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon fi-cyan">🎯</div>
+        <div class="feature-title">Production Patterns</div>
+        <div class="feature-desc">Multi-AZ, redundancy, proper security groups, private subnets. The architecture a senior engineer would design.</div>
+        <span class="feature-tag ft-cyan">real-world ready</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-green">💸</div>
+        <div class="feature-title">Cost-Aware by Default</div>
+        <div class="feature-desc">Every architecture comes with cost estimation and cheaper alternatives. No surprise bills.</div>
+        <span class="feature-tag ft-green">save 40-60%</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-amber">⚡</div>
+        <div class="feature-title">Seconds, Not Days</div>
+        <div class="feature-desc">What takes a cloud architect hours of design and research happens in one command.</div>
+        <span class="feature-tag ft-amber">10x faster</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-purple">🚀</div>
+        <div class="feature-title">Auto-Deploy, Full Ownership</div>
+        <div class="feature-desc">One command and it's live on your AWS account. Terraform exported so you own and control every resource — no lock-in.</div>
+        <span class="feature-tag ft-purple">zero lock-in</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-cyan">🧠</div>
+        <div class="feature-title">Intent Understanding</div>
+        <div class="feature-desc">Knows that "high availability" means Multi-AZ RDS, cross-zone ALB, and auto-scaling — not just a bigger instance.</div>
+        <span class="feature-tag ft-cyan">semantic</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-green">🔒</div>
+        <div class="feature-title">Security Best Practices</div>
+        <div class="feature-desc">Least-privilege IAM, private subnets for DBs, encrypted at rest and in transit. Baked in, not bolted on.</div>
+        <span class="feature-tag ft-green">secure by default</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- What it's NOT -->
+<section class="not-section">
+  <div class="container">
+    <p class="section-label">Positioning</p>
+    <h2 class="section-title">What this is (and isn't)</h2>
+    <p class="section-desc" style="margin-bottom:36px;">Clarity builds trust. Here's what you're signing up for.</p>
+
+    <div class="not-grid">
+      <div class="not-card is-not">
+        <div class="not-card-label">✕ Not this</div>
+        <ul>
+          <li>A chatbot that explains what AWS is</li>
+          <li>A snippet generator for boilerplate</li>
+          <li>A thin wrapper around Terraform CLI</li>
+          <li>Infra for demos — not for production</li>
+        </ul>
+      </div>
+      <div class="not-card is-yes">
+        <div class="not-card-label">✓ This</div>
+        <ul>
+          <li>A Cloud Architect AI that auto-deploys</li>
+          <li>Intent → Architecture → Live in seconds</li>
+          <li>Cost-performance optimization built-in</li>
+          <li>Full IaC export — you own your infra</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="container">
+    <div class="cta-box">
+      <div class="glow-orb glow-orb-3"></div>
+      <h2>Describe it. Deploy it. Done.</h2>
+      <p>Join the waitlist and get early access when we launch.</p>
+      <form class="waitlist-form" id="waitlistForm2">
+        <div class="form-row">
+          <input type="email" placeholder="you@company.com" required id="emailInput2">
+          <button type="submit">Join Waitlist</button>
+        </div>
+        <textarea placeholder="What would you use this for? (optional)" id="messageInput2" rows="1"></textarea>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAACfoj-zPeotsx3Om" data-theme="dark" data-size="flexible"></div>
+        <div class="form-error" id="formError2"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p>© 2026 Cloud Intent Infra · Building in public</p>
+  </div>
+</footer>
+
+<script>
+  const WORKER_URL = 'https://intentinfra-waitlist.02-garcia-p.workers.dev';
+
+  async function submitToWaitlist(email, message, turnstileToken) {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, message, turnstileToken })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'already_registered') throw new Error('already_registered');
+      throw new Error(data.error || 'Something went wrong');
+    }
+    return data;
+  }
+
+  function setupForm(formId, emailId, messageId, errorId, successId, containerId) {
+    const form = document.getElementById(formId);
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      const errorEl = document.getElementById(errorId);
+      const email = document.getElementById(emailId).value;
+      const message = document.getElementById(messageId)?.value || '';
+
+      // Check Turnstile token
+      const turnstileInput = form.querySelector('[name="cf-turnstile-response"]');
+      if (!turnstileInput || !turnstileInput.value) {
+        errorEl.textContent = 'Please complete the verification.';
+        errorEl.style.color = 'var(--amber)';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      errorEl.style.display = 'none';
+
+      try {
+        await submitToWaitlist(email, message, turnstileInput.value);
+        if (containerId && successId) {
+          document.getElementById(containerId).style.display = 'none';
+          document.getElementById(successId).style.display = 'block';
+        } else {
+          form.innerHTML = '<div style="color: var(--green); font-family: JetBrains Mono, monospace; font-size: 0.9rem; padding: 14px 0;">✓ You\'re on the list — we\'ll be in touch.</div>';
+        }
+      } catch (err) {
+        if (err.message === 'already_registered') {
+          errorEl.textContent = 'You\'re already on the list! We\'ll be in touch.';
+          errorEl.style.color = 'var(--amber)';
+        } else {
+          errorEl.textContent = 'Something went wrong. Try again.';
+          errorEl.style.color = 'var(--red)';
+        }
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Join Waitlist';
+      }
+    });
+  }
+
+  setupForm('waitlistForm', 'emailInput', 'messageInput', 'formError', 'waitlistSuccess', 'waitlist-form-container');
+  setupForm('waitlistForm2', 'emailInput2', 'messageInput2', 'formError2', null, null);
+</script>
+
+</body>
+</html>
